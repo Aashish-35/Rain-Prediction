@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}Result · Rain Predictor{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-9">
+    <div class="glass-card text-center">
+      <div class="weather-emoji">{% if p.will_rain %}🌧️{% else %}☀️{% endif %}</div>
+      <h2 class="mt-2 mb-1">{% if p.will_rain %}Rain is expected{% else %}No rain expected{% endif %}</h2>
+      <p class="text-muted mb-4">{{ p.created_at|date:"l, d M Y · H:i" }}</p>
+
+      <div class="gauge mb-3">
+        <svg width="220" height="220" viewBox="0 0 120 120">
+          <circle class="track" cx="60" cy="60" r="54"/>
+          <circle class="bar {{ p.risk_level|lower }}" cx="60" cy="60" r="54" data-percent="{{ p.percent }}"/>
+        </svg>
+        <div class="center">
+          <div class="pct" id="gaugeNum">0%</div>
+          <div class="cap">chance of rain</div>
+        </div>
+      </div>
+
+      <span class="risk-pill {{ p.risk_level|lower }} mb-3">
+        <i class="bi bi-activity"></i>{{ p.risk_level }} risk
+      </span>
+
+      <p class="text-muted mx-auto mb-4" style="max-width:520px">
+        {% if p.risk_level == "High" %}
+          Carry an umbrella or raincoat and plan for wet conditions.
+        {% elif p.risk_level == "Moderate" %}
+          Rain is possible. Keep an umbrella handy just in case.
+        {% else %}
+          Conditions look dry. You can probably leave the umbrella at home.
+        {% endif %}
+      </p>
+
+      <div class="row g-3 text-start mb-4">
+        <div class="col-6 col-md-4"><div class="tile"><div class="k"><i class="bi bi-thermometer-half"></i>Temperature</div><div class="v">{{ p.temperature|floatformat:1 }} °C</div></div></div>
+        <div class="col-6 col-md-4"><div class="tile"><div class="k"><i class="bi bi-droplet-half"></i>Humidity</div><div class="v">{{ p.humidity|floatformat:1 }} %</div></div></div>
+        <div class="col-6 col-md-4"><div class="tile"><div class="k"><i class="bi bi-wind"></i>Wind speed</div><div class="v">{{ p.wind_speed|floatformat:1 }} km/h</div></div></div>
+        <div class="col-6 col-md-4"><div class="tile"><div class="k"><i class="bi bi-cloud"></i>Cloud cover</div><div class="v">{{ p.cloud_cover|floatformat:1 }} %</div></div></div>
+        <div class="col-6 col-md-4"><div class="tile"><div class="k"><i class="bi bi-speedometer2"></i>Pressure</div><div class="v">{{ p.pressure|floatformat:1 }} hPa</div></div></div>
+        <div class="col-6 col-md-4"><div class="tile"><div class="k"><i class="bi bi-sliders"></i>Decision threshold</div><div class="v">{{ p.threshold|floatformat:2 }}</div></div></div>
+      </div>
+
+      <div class="d-flex justify-content-center gap-2 flex-wrap">
+        <a href="{% url 'predict' %}" class="btn btn-gradient"><i class="bi bi-arrow-repeat me-2"></i>New prediction</a>
+        <a href="{% url 'history' %}" class="btn btn-soft"><i class="bi bi-clock-history me-2"></i>View history</a>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

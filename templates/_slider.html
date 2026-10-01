@@ -1,0 +1,16 @@
+<div class="metric">
+  <div class="metric-head">
+    <label class="metric-label" for="{{ field.id_for_label }}">
+      <i class="bi {{ icon }}"></i>{{ label }}
+    </label>
+    <div class="d-flex align-items-center gap-2">
+      <input type="number" class="form-control metric-input" id="{{ field.id_for_label }}"
+             name="{{ field.html_name }}" min="{{ min }}" max="{{ max }}" step="{{ step }}"
+             value="{{ field.value|default_if_none:default }}" required>
+      <span class="text-muted small" style="width:38px">{{ unit }}</span>
+    </div>
+  </div>
+  <input type="range" min="{{ min }}" max="{{ max }}" step="{{ step }}" value="{{ default }}" aria-hidden="true" tabindex="-1">
+  <div class="range-scale"><span>{{ min }}</span><span>{{ max }}</span></div>
+  {% for e in field.errors %}<div class="text-danger small mt-1"><i class="bi bi-exclamation-circle me-1"></i>{{ e }}</div>{% endfor %}
+</div>

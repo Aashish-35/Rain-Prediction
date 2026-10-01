@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}History · Rain Predictor{% endblock %}
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-4">
+  <div>
+    <h1 class="page-title">Prediction history</h1>
+    <p class="page-sub mb-0">Every prediction you have made, newest first.</p>
+  </div>
+  <div class="d-flex gap-2 flex-wrap">
+    <button type="button" class="chip active" data-filter="all">All</button>
+    <button type="button" class="chip" data-filter="rain">🌧️ Rain</button>
+    <button type="button" class="chip" data-filter="dry">☀️ No rain</button>
+    <a href="{% url 'predict' %}" class="btn btn-gradient btn-sm ms-2"><i class="bi bi-plus-lg me-1"></i>New</a>
+  </div>
+</div>
+
+<div class="glass-card p-0 overflow-hidden">
+  <div class="table-responsive">
+    <table class="table table-modern">
+      <thead>
+        <tr>
+          <th>Date</th><th>Temp</th><th>Humidity</th><th>Wind</th><th>Cloud</th><th>Pressure</th>
+          <th style="min-width:130px">P(rain)</th><th>Result</th><th></th>
+        </tr>
+      </thead>
+      <tbody id="histBody">
+        {% for p in page %}
+        <tr data-result="{% if p.will_rain %}rain{% else %}dry{% endif %}">
+          <td>{{ p.created_at|date:"d M Y" }}<div class="text-muted small">{{ p.created_at|date:"H:i" }}</div></td>
+          <td>{{ p.temperature|floatformat:1 }}°</td>
+          <td>{{ p.humidity|floatformat:0 }}%</td>
+          <td>{{ p.wind_speed|floatformat:1 }}</td>
+          <td>{{ p.cloud_cover|floatformat:0 }}%</td>
+          <td>{{ p.pressure|floatformat:0 }}</td>
+          <td>
+            <div class="fw-semibold small mb-1">{{ p.percent }}%</div>
+            <div class="mini-bar"><span style="width: {{ p.percent }}%"></span></div>
+          </td>
+          <td>{% if p.will_rain %}<span class="badge-rain">🌧️ Rain</span>{% else %}<span class="badge-dry">☀️ Dry</span>{% endif %}</td>
+          <td class="text-end text-nowrap">
+            <a class="btn btn-sm btn-soft" href="{% url 'result' p.pk %}" title="View"><i class="bi bi-eye"></i></a>
+            <form method="post" action="{% url 'delete_prediction' p.pk %}" class="d-inline"
+                  onsubmit="return confirm('Delete this prediction?')">
+              {% csrf_token %}
+              <button class="btn btn-sm btn-soft text-danger" title="Delete"><i class="bi bi-trash"></i></button>
+            </form>
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="9">
+          <div class="empty">
+            <i class="bi bi-cloud-slash"></i>
+            <h5 class="mt-3">No predictions yet</h5>
+            <p>Run your first prediction to see it here.</p>
+            <a href="{% url 'predict' %}" class="btn btn-gradient">Make a prediction</a>
+          </div>
+        </td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% if page.has_other_pages %}
+<nav class="mt-4 d-flex justify-content-center"><ul class="pagination">
+  {% if page.has_previous %}<li class="page-item"><a class="page-link" href="?page={{ page.previous_page_number }}">‹ Prev</a></li>{% endif %}
+  <li class="page-item disabled"><span class="page-link">{{ page.number }} / {{ page.paginator.num_pages }}</span></li>
+  {% if page.has_next %}<li class="page-item"><a class="page-link" href="?page={{ page.next_page_number }}">Next ›</a></li>{% endif %}
+</ul></nav>
+{% endif %}
+{% endblock %}
