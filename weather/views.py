@@ -1,16 +1,14 @@
-import json
-
 from django.contrib import messages
 from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.db.models import Avg, Count, Q
-from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
+from . import api_client
+from .api_client import PredictionAPIError
 from .forms import PredictionForm, SignUpForm
-from .ml import predict_rain
 from .models import Prediction
 
 
@@ -31,10 +29,22 @@ def predict_view(request):
     form = PredictionForm(request.POST or None)
     if request.method == "POST" and form.is_valid():
         data = form.cleaned_data
-        prob, will_rain, threshold = predict_rain(**data)
+        try:
+            result = api_client.predict(data)
+        except PredictionAPIError as e:
+            messages.error(request, str(e))
+            return render(request, "predict.html", {"form": form})
+
         obj = Prediction.objects.create(
-            user=request.user, **data,
-            probability=prob, threshold=threshold, will_rain=will_rain,
+            user=request.user,
+            **data,
+            probability=result["probability"],
+            threshold=result["threshold"],
+            will_rain=result["will_rain"],
+            explanation={
+                "base_value": result["base_value"],
+                "contributions": result["contributions"],
+            },
         )
         return redirect("result", pk=obj.pk)
     return render(request, "predict.html", {"form": form})
@@ -43,7 +53,19 @@ def predict_view(request):
 @login_required
 def result_view(request, pk):
     obj = get_object_or_404(Prediction, pk=pk, user=request.user)
-    return render(request, "result.html", {"p": obj})
+
+    explain = None
+    exp = obj.explanation or {}
+    contribs = exp.get("contributions") or []
+    if contribs:
+        explain = {
+            "base": round(exp.get("base_value", 0), 1),
+            "final": obj.percent,
+            "labels": [c["label"] for c in contribs],
+            "values": [round(c["impact"], 1) for c in contribs],
+            "items": contribs,
+        }
+    return render(request, "result.html", {"p": obj, "explain": explain})
 
 
 @login_required
@@ -69,7 +91,7 @@ def dashboard_view(request):
         rain=Count("id", filter=Q(will_rain=True)),
         avg_prob=Avg("probability"),
     )
-    recent = list(qs[:20])[::-1]   # oldest to newest for the chart
+    recent = list(qs[:20])[::-1]
     chart = {
         "labels": [p.created_at.strftime("%d %b %H:%M") for p in recent],
         "probs": [p.percent for p in recent],
@@ -85,27 +107,19 @@ def dashboard_view(request):
 
 
 @login_required
-@require_POST
-def api_predict(request):
-    """JSON endpoint. Session-authenticated, so send the CSRF token with fetch()."""
+def model_performance(request):
+    info, cards = None, []
     try:
-        payload = json.loads(request.body)
-    except json.JSONDecodeError:
-        return JsonResponse({"error": "Invalid JSON"}, status=400)
-
-    form = PredictionForm(payload)
-    if not form.is_valid():
-        return JsonResponse({"errors": form.errors.get_json_data()}, status=400)
-
-    data = form.cleaned_data
-    prob, will_rain, threshold = predict_rain(**data)
-    obj = Prediction.objects.create(
-        user=request.user, **data,
-        probability=prob, threshold=threshold, will_rain=will_rain,
-    )
-    return JsonResponse({
-        "id": obj.pk,
-        "probability": round(prob, 4),
-        "will_rain": will_rain,
-        "risk_level": obj.risk_level,
-    })
+        info = api_client.model_info()
+        t = info["test"]
+        cards = [
+            ("Accuracy", t["accuracy"], "bi-bullseye", "g1"),
+            ("Precision", t["precision"], "bi-crosshair", "g2"),
+            ("Recall", t["recall"], "bi-search", "g3"),
+            ("F1 score", t["f1"], "bi-award", "g4"),
+            ("ROC-AUC", t["roc_auc"], "bi-graph-up", "g1"),
+            ("PR-AUC", t["pr_auc"], "bi-bar-chart-steps", "g2"),
+        ]
+    except PredictionAPIError as e:
+        messages.error(request, str(e))
+    return render(request, "model_performance.html", {"info": info, "cards": cards})

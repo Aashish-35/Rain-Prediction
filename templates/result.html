@@ -3,7 +3,7 @@
 {% block content %}
 <div class="row justify-content-center">
   <div class="col-lg-9">
-    <div class="glass-card text-center">
+    <div class="glass-card text-center mb-4">
       <div class="weather-emoji">{% if p.will_rain %}🌧️{% else %}☀️{% endif %}</div>
       <h2 class="mt-2 mb-1">{% if p.will_rain %}Rain is expected{% else %}No rain expected{% endif %}</h2>
       <p class="text-muted mb-4">{{ p.created_at|date:"l, d M Y · H:i" }}</p>
@@ -19,18 +19,12 @@
         </div>
       </div>
 
-      <span class="risk-pill {{ p.risk_level|lower }} mb-3">
-        <i class="bi bi-activity"></i>{{ p.risk_level }} risk
-      </span>
+      <span class="risk-pill {{ p.risk_level|lower }} mb-3"><i class="bi bi-activity"></i>{{ p.risk_level }} risk</span>
 
       <p class="text-muted mx-auto mb-4" style="max-width:520px">
-        {% if p.risk_level == "High" %}
-          Carry an umbrella or raincoat and plan for wet conditions.
-        {% elif p.risk_level == "Moderate" %}
-          Rain is possible. Keep an umbrella handy just in case.
-        {% else %}
-          Conditions look dry. You can probably leave the umbrella at home.
-        {% endif %}
+        {% if p.risk_level == "High" %}Carry an umbrella or raincoat and plan for wet conditions.
+        {% elif p.risk_level == "Moderate" %}Rain is possible. Keep an umbrella handy just in case.
+        {% else %}Conditions look dry. You can probably leave the umbrella at home.{% endif %}
       </p>
 
       <div class="row g-3 text-start mb-4">
@@ -47,6 +41,74 @@
         <a href="{% url 'history' %}" class="btn btn-soft"><i class="bi bi-clock-history me-2"></i>View history</a>
       </div>
     </div>
+
+    {% if explain %}
+    <div class="glass-card">
+      <h4 class="mb-1"><i class="bi bi-search-heart me-2 text-primary"></i>Why this prediction?</h4>
+      <p class="text-muted mb-4">
+        The model starts from an average rain chance of <strong>{{ explain.base }}%</strong>. Each reading below
+        pushes that number up or down, ending at <strong>{{ explain.final }}%</strong>.
+      </p>
+
+      <div class="row g-4 align-items-center">
+        <div class="col-lg-7"><div style="height:280px"><canvas id="shapChart"></canvas></div></div>
+        <div class="col-lg-5">
+          <ul class="list-unstyled mb-0">
+            {% for c in explain.items %}
+            <li class="d-flex justify-content-between align-items-center py-2" style="border-bottom:1px solid var(--border)">
+              <span>{{ c.label }} <span class="text-muted small">({{ c.value|floatformat:1 }} {{ c.unit }})</span></span>
+              <strong class="{% if c.impact > 0 %}text-primary{% else %}text-warning{% endif %}">
+                {% if c.impact > 0 %}+{% endif %}{{ c.impact|floatformat:1 }} pts
+              </strong>
+            </li>
+            {% endfor %}
+          </ul>
+        </div>
+      </div>
+
+      <p class="text-muted small mt-3 mb-0">
+        <i class="bi bi-info-circle me-1"></i>
+        Blue bars raise the rain chance, amber bars lower it. These are SHAP values: they explain how the model
+        reached its answer, not what physically causes rain.
+      </p>
+    </div>
+
+    {{ explain|json_script:"explain-data" }}
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+    <script>
+      const ex = JSON.parse(document.getElementById("explain-data").textContent);
+      let chart;
+      function build() {
+        const dark = document.documentElement.getAttribute("data-theme") === "dark";
+        const text = dark ? "#c7d0f0" : "#4a5578", grid = dark ? "rgba(255,255,255,.08)" : "rgba(0,0,0,.06)";
+        if (chart) chart.destroy();
+        chart = new Chart(document.getElementById("shapChart"), {
+          type: "bar",
+          data: { labels: ex.labels, datasets: [{
+            data: ex.values,
+            backgroundColor: ex.values.map(v => v >= 0 ? "#4f6df5" : "#f5a524"),
+            borderRadius: 8,
+          }]},
+          options: {
+            indexAxis: "y", maintainAspectRatio: false,
+            plugins: { legend: { display: false },
+              tooltip: { callbacks: { label: c => (c.parsed.x > 0 ? "+" : "") + c.parsed.x + " percentage points" } } },
+            scales: {
+              x: { title: { display: true, text: "Effect on rain chance (percentage points)", color: text },
+                   ticks: { color: text }, grid: { color: grid } },
+              y: { ticks: { color: text }, grid: { display: false } },
+            },
+          },
+        });
+      }
+      build();
+      document.addEventListener("themechange", build);
+    </script>
+    {% else %}
+    <div class="glass-card text-center text-muted">
+      <i class="bi bi-info-circle me-1"></i>No explanation is stored for this older prediction.
+    </div>
+    {% endif %}
   </div>
 </div>
 {% endblock %}

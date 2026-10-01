@@ -10,7 +10,7 @@ urlpatterns = [
     path("history/", views.history_view, name="history"),
     path("history/<int:pk>/delete/", views.delete_prediction, name="delete_prediction"),
     path("dashboard/", views.dashboard_view, name="dashboard"),
-    path("api/predict/", views.api_predict, name="api_predict"),
+    path("model/", views.model_performance, name="model_performance"),
 
     path("signup/", views.signup, name="signup"),
     path("login/", auth_views.LoginView.as_view(authentication_form=LoginForm), name="login"),

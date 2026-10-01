@@ -1,5 +1,6 @@
 from pathlib import Path
 from django.contrib.messages import constants as messages
+import os
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -83,3 +84,8 @@ STATICFILES_DIRS = [BASE_DIR / "static"]
 
 # Map Django message levels to Bootstrap alert classes
 MESSAGE_TAGS = {messages.ERROR: "danger"}
+
+# --- FastAPI prediction service ---
+FASTAPI_URL = os.getenv("FASTAPI_URL", "http://127.0.0.1:8001")
+FASTAPI_API_KEY = os.getenv("RAIN_API_KEY", "dev-secret-key")   # must match the FastAPI side
+FASTAPI_TIMEOUT = 15

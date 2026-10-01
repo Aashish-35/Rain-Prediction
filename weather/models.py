@@ -14,6 +14,7 @@ class Prediction(models.Model):
     probability = models.FloatField()
     threshold = models.FloatField()
     will_rain = models.BooleanField()
+    explanation = models.JSONField(default=dict, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
